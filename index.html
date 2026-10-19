@@ -1027,5 +1027,13 @@ const DM=(function(){
 function toast(m,ms){ms=ms||2200;var t=document.getElementById('_tt');if(!t){t=document.createElement('div');t.id='_tt';t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s;pointer-events:none';document.body.appendChild(t);}t.textContent=m;t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(function(){t.style.opacity='0';},ms);}
 window.addEventListener('DOMContentLoaded',function(){try{DM.setMode('master');}catch(e){console.warn(e);}});
 </script>
-<script>(function(){function go(){var m='bj';try{m=localStorage.getItem('dm_last_mode')==='ss'?'ss':'bj';}catch(e){}try{DM.setMode(m);}catch(e){console.warn(e);}}document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.dm-mb[data-m]');if(b){try{localStorage.setItem('dm_last_mode',b.dataset.m);}catch(x){}}});if(document.readyState==='complete')setTimeout(go,0);else window.addEventListener('load',function(){setTimeout(go,0);});})();</script>
+<script>(function(){var H={};try{new URLSearchParams((location.hash||'').replace(/^#/,'')).forEach(function(v,k){H[k]=v;});}catch(e){}
+function go(){var m='bj';try{m=localStorage.getItem('dm_last_mode')==='ss'?'ss':'bj';}catch(e){}if(H.m==='ss'||H.m==='bj')m=H.m;try{DM.setMode(m);}catch(e){console.warn(e);}
+  if(H.wh&&m==='bj'){var ws=document.getElementById('dm-bjwh');if(ws&&[].some.call(ws.options,function(o){return o.value===H.wh;})){ws.value=H.wh;try{DM.relayout();}catch(e){}}}
+  if(H.name){var pn=document.getElementById('dm-prodname');if(pn)pn.value=H.name;var gb=document.querySelector('.dm-gen');if(gb)gb.addEventListener('click',function(){setTimeout(function(){var p=document.getElementById('dm-prodname');if(p&&H.name){p.value=H.name;try{DM.setProd();}catch(e){}}},50);});}
+  if(H.src||H.name){var box=document.createElement('div');box.style.cssText='background:#fff8e1;border:1px solid #f0d27a;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.6';
+    box.innerHTML='<b>관리 사이트에서 연 상품</b> · '+(m==='ss'?'🐟 수사장':'🔪 백정닷컴')+(H.wh&&m==='bj'?' · '+H.wh.replace(/</g,'&lt;'):'')+(H.name?'<br>상품명: '+H.name.replace(/</g,'&lt;'):'')+(H.src?'<br><a target="_blank" rel="noopener">마스터 게시글 열기 ↗</a> → Ctrl+U → 전체 복사 → ① 칸에 붙여넣기':'');
+    if(H.src){var a=box.querySelector('a');if(/^https?:\/\/(www\.)?masterc\.co\.kr\//i.test(H.src))a.href=H.src;}
+    var left=document.querySelector('#dm .dm-left');if(left)left.insertBefore(box,left.firstChild);}
+}document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.dm-mb[data-m]');if(b){try{localStorage.setItem('dm_last_mode',b.dataset.m);}catch(x){}}});if(document.readyState==='complete')setTimeout(go,0);else window.addEventListener('load',function(){setTimeout(go,0);});})();</script>
 </body></html>
