@@ -37,7 +37,7 @@ for(let k=0;k<targets.length;k++){
   const zip=(addr.match(/^\((\d{5})\)\s*/)||[])[1]||'';
   addr=addr.replace(/^\(\d{5}\)\s*/,'').trim();
   const phone=after(lines,'연락처');
-  let memo='';const mi=lines.findIndex(l=>/요청|배송\s*메모|메모/.test(l)&&l.length<15);if(mi>=0)memo=lines[mi+1]||'';
+  let memo='';const mi=lines.findIndex(l=>/요청|배송\s*메모|메모/.test(l)&&l.length<15);if(mi>=0)memo=lines[mi+1]||'';const ai=lines.findIndex(l=>l==='배송지');if(ai>=0){const ex=[];for(let j=ai+2;j<lines.length&&j<ai+6;j++){const l=lines[j];if(l==='연락처'||l==='받는 사람'||l==='결제 정보')break;if(l==='복사')continue;ex.push(l);}if(ex.length)memo=[...ex,memo].filter(Boolean).join(' / ');}
   if(!name||!addr){fail.push(o.no+' (배송 정보 못 읽음 · 주문수락 안 함)');}
   else{
     let accepted=false;
