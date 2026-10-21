@@ -19,14 +19,15 @@ for(let i=0;i<tabs.length;i++){
   [...d.querySelectorAll('tbody tr')].forEach(tr=>{const c=tr.children;if(c.length<=Math.max(iN,iT))return;const a=c[iN].querySelector('a.nml');const nm=(a?a.textContent:c[iN].textContent).trim().replace(/\s+/g,' ');if(!nm)return;
     const id=a?((a.getAttribute('href')||'').match(/(\d{5,})/)||[])[1]||'':'';
     const lock=c[iN].querySelector('.tag.rfs')?1:0;
-    rows.push([String(tabs[i]).replace(/\d+$/,''),nm,num(c[iT].textContent),iR>=0?num(c[iR].textContent):0,iP>=0?num(c[iP].textContent):0,id,lock]);});
+    const tT=(c[iT].textContent||'').replace(/\s+/g,''),tR=iR>=0?(c[iR].textContent||'').replace(/\s+/g,''):'';const ample=/넉넉/.test(tR)||/^0{2,}$/.test(tT)?1:0;
+    rows.push([String(tabs[i]).replace(/\d+$/,''),nm,ample?999:num(tT),ample?999:(iR>=0?num(tR):0),iP>=0?num(c[iP].textContent):0,id,lock,ample]);});
 }
 const day=((document.body.innerText||'').match(/📅[^\n]*/)||[''])[0].replace('📅','').trim();
 const payload='BJQTY1:'+JSON.stringify({at:new Date().toISOString(),day,v:2,rows});
 let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
 box.innerHTML='';const t=document.createElement('div');
 const lk=rows.filter(r=>r[6]).length;
-t.textContent=(copied?'복사했어요. ':'')+'마스터 상품 '+rows.length+'개를 읽었어요. (총수량 0 = 품절 '+rows.filter(r=>r[2]===0&&!r[6]).length+'개'+(lk?', 수량최신화 전 '+lk+'개':'')+')'+(day?'\n기준: '+day:'')+(fail.length?'\n못 읽은 창고: '+fail.join(', '):'')+'\n\n백정닷컴 관리 사이트 [상품 관리] ① 칸에 붙여넣으세요(Ctrl+V).';box.append(t);
+t.textContent=(copied?'복사했어요. ':'')+'마스터 상품 '+rows.length+'개를 읽었어요. (총수량 0 = 품절 '+rows.filter(r=>r[2]===0&&!r[6]).length+'개'+(rows.some(r=>r[7])?', 넉넉 '+rows.filter(r=>r[7]).length+'개':'')+(lk?', 수량최신화 전 '+lk+'개':'')+')'+(day?'\n기준: '+day:'')+(fail.length?'\n못 읽은 창고: '+fail.join(', '):'')+'\n\n백정닷컴 관리 사이트 [상품 관리] ① 칸에 붙여넣으세요(Ctrl+V).';box.append(t);
 if(!copied){const ta=document.createElement('textarea');ta.value=payload;ta.style.cssText='width:100%;height:80px;margin-top:8px;color:#111';box.append(ta);ta.select();const h=document.createElement('div');h.textContent='자동 복사가 막혔어요. 위 칸이 선택돼 있으니 Ctrl+C로 복사하세요.';box.append(h);}
 const cl=document.createElement('button');cl.textContent='닫기';cl.style.cssText='margin-top:10px;background:#fff;color:#111;border:0;border-radius:6px;padding:6px 14px;cursor:pointer';cl.onclick=()=>box.remove();box.append(cl);
 })();
