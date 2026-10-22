@@ -1,5 +1,6 @@
 (async()=>{
-if(!/store-center\.daangn\.com$/.test(location.host)||!/\/order/.test(location.pathname)){alert('당근비즈니스 [상품 판매 → 주문 관리] 화면에서 눌러주세요.');return;}
+const AUTO=window.__BJ_AUTO===true;window.__BJ_OUT=null;const done=(o)=>{window.__BJ_OUT=o;};
+if(!/store-center\.daangn\.com$/.test(location.host)||!/\/order/.test(location.pathname)){if(AUTO){done({status:'wrongpage'});return;}alert('당근비즈니스 [상품 판매 → 주문 관리] 화면에서 눌러주세요.');return;}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const box=document.createElement('div');
 box.style.cssText='position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:2147483647;background:#1f2937;color:#fff;padding:16px 20px;border-radius:12px;font:14px/1.6 sans-serif;width:min(560px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.35);white-space:pre-wrap';
@@ -17,8 +18,8 @@ if(sizeSel&&sizeSel.value!=='100'){
 }
 const tabName=([...document.querySelectorAll('button[aria-selected="true"]')].map(b=>b.textContent.trim()).find(t=>/주문$/.test(t)))||'';
 const targets=getRows().map(r=>{const c=[...r.children].map(x=>(x.innerText||x.textContent||'').trim().replace(/\s+/g,' '));return{no:c[0],how:c[1],st:c[2],product:c[3],option:c[5],qty:parseInt(c[6],10)||1,amount:parseInt((c[7]||'').replace(/[^\d]/g,''),10)||0,time:c[8]};}).filter(o=>/결제\s*완료/.test(o.st));
-if(!targets.length){box.remove();alert('이 화면에 ‘결제완료’ 주문이 없어요.'+(tabName?'\n('+tabName+' 탭)':''));return;}
-if(!confirm((tabName?'['+tabName+'] ':'')+'결제완료 주문 '+targets.length+'건을 읽고 주문수락까지 할까요?\n\n주문 상세를 하나씩 열어서 받는 사람·주소·연락처를 읽고, 다 읽힌 주문은 바로 [주문수락]을 눌러요. 주문수락은 되돌릴 수 없어요.')){box.remove();return;}
+if(!targets.length){box.remove();if(AUTO){done({status:'ok',tab:tabName,orders:[],fail:[],accFail:[]});return;}alert('이 화면에 ‘결제완료’ 주문이 없어요.'+(tabName?'\n('+tabName+' 탭)':''));return;}
+if(!AUTO&&!confirm((tabName?'['+tabName+'] ':'')+'결제완료 주문 '+targets.length+'건을 읽고 주문수락까지 할까요?\n\n주문 상세를 하나씩 열어서 받는 사람·주소·연락처를 읽고, 다 읽힌 주문은 바로 [주문수락]을 눌러요. 주문수락은 되돌릴 수 없어요.')){box.remove();return;}
 const dlg=()=>[...document.querySelectorAll('[role="dialog"]')].find(d=>(d.innerText||'').includes('주문 상세'));
 const after=(lines,label)=>{const i=lines.findIndex(l=>l===label);return i>=0?(lines[i+1]||''):'';};
 const out=[],fail=[],accFail=[];
@@ -56,6 +57,7 @@ for(let k=0;k<targets.length;k++){
   await sleep(200);
 }
 const p2=n=>String(n).padStart(2,'0');const now=new Date();
+if(AUTO){box.remove();done({status:'ok',src:'당근',tab:tabName,at:now.toISOString(),orders:out,fail,accFail});return;}
 const payload='BJORD1:'+JSON.stringify({src:'당근',tab:tabName,at:now.toISOString(),orders:out});
 let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
 box.innerHTML='';
@@ -64,4 +66,4 @@ t.textContent=(copied?'복사했어요. ':'')+'결제완료 주문 '+out.length+
 box.append(t);
 if(!copied){const ta=document.createElement('textarea');ta.value=payload;ta.style.cssText='width:100%;height:80px;margin-top:8px;color:#111';box.append(ta);ta.select();const h=document.createElement('div');h.textContent='자동 복사가 막혔어요. 위 칸이 선택돼 있으니 Ctrl+C로 복사하세요.';box.append(h);}
 const cl=document.createElement('button');cl.textContent='닫기';cl.style.cssText='margin-top:10px;background:#fff;color:#111;border:0;border-radius:6px;padding:6px 14px;cursor:pointer';cl.onclick=()=>box.remove();box.append(cl);
-})();
+})().catch(e=>{window.__BJ_OUT={status:'error',msg:String(e&&e.message||e)};});
