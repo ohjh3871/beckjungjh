@@ -28,13 +28,39 @@ if(/^BJREVSET1:/.test(raw)){
   if(list.length>8)msg+='\n… 외 '+(list.length-8)+'개';
   if(skip)msg+='\n\n이미 답글이 있거나 목록에 없는 '+skip+'개는 건너뛰어요.';
   box.textContent='확인창을 확인해 주세요.';if(!confirm(msg)){box.remove();return;}
+  if(!/EXCLUDE_COMMENTED_REVIEW/.test(location.search)){box.remove();alert('당근 후기 화면에서 [답글 없는 후기만]을 켠 상태로 눌러주세요.\n(관리 사이트의 ‘당근 후기 열기’ 버튼으로 열면 바로 그 화면이에요)');return;}
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));const nz=t=>String(t||'').replace(/\s+/g,'');
+  const cards=()=>[...document.querySelectorAll('button')].filter(x=>(x.textContent||'').trim()==='답글쓰기').map(btn=>{let c=btn;for(let i=0;i<8&&c;i++){c=c.parentElement;if(c&&(c.innerText||'').length>20&&c.querySelectorAll('button').length>=2)break;}return {btn,card:c,txt:c?c.innerText:''};});
+  const firstTxt=()=>{const c=cards()[0];return c?c.txt.slice(0,60):'';};
+  const pgBtn=n=>[...document.querySelectorAll('button')].find(x=>(x.getAttribute('aria-label')||'')===n+'페이지');
+  const curPage=()=>{const x=[...document.querySelectorAll('button[aria-current="page"]')].find(y=>/페이지/.test(y.getAttribute('aria-label')||''));return x?Number(x.textContent.trim()):1;};
+  const waitChange=async before=>{for(let i=0;i<40;i++){await sleep(150);if(firstTxt()!==before)return true;}return false;};
+  const goPage=async n=>{for(let g=0;g<80&&curPage()!==n;g++){const before=firstTxt();let bt=pgBtn(n);if(!bt){const nx=[...document.querySelectorAll('button')].find(x=>(x.getAttribute('aria-label')||'')===(curPage()<n?'다음 페이지':'이전 페이지'));if(!nx||nx.disabled)return false;bt=nx;}bt.click();await waitChange(before);await sleep(300);}return curPage()===n;};
+  const idxOf=async id=>{const L=await getAll();const i=L.findIndex(r=>r[0]===id);return i;};
+  const matchCard=r=>{const nick=r[6],ct=nz(r[3]).slice(0,25);return cards().find(c=>c.txt.split('\n')[0].trim()===nick&&(!ct||nz(c.txt).includes(ct)));};
+  const setVal=(ta,v)=>{const d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value');d.set.call(ta,v);ta.dispatchEvent(new Event('input',{bubbles:true}));ta.dispatchEvent(new Event('change',{bubbles:true}));};
+  const hasComment=async id=>{try{const j=await (await fetch(GW+'/business-review/api/v2/reviews/'+id,{credentials:'include'})).json();return !!(j&&j.data&&j.data.comment);}catch(e){return false;}};
   const ok=[],bad=[];
-  for(let i=0;i<list.length;i++){const [id,txt]=list[i];say('답글 올리는 중… '+(i+1)+'/'+list.length);
-    try{const r=await fetch(GW+'/business-review/api/legacy/reviews/'+id+'/comments',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:String(txt)})});if(r.ok)ok.push(id);else{let t='';try{t=(await r.text()).slice(0,120);}catch(e){}bad.push(id+' ('+r.status+' '+t.replace(/\s+/g,' ')+')');}}catch(e){bad.push(id+' ('+e.message+')');}
-    await new Promise(r=>setTimeout(r,400));
-    if(i===0&&bad.length)break;}
+  for(let i=0;i<list.length;i++){const [id,txt]=list[i];const r=by[id];say('답글 올리는 중… '+(i+1)+'/'+list.length+'\n'+r[6]+' 님 후기 찾는 중');
+    try{
+      const ix=await idxOf(id);if(ix<0){bad.push(id+' (이미 답글이 있거나 목록에 없음)');continue;}
+      const page=Math.floor(ix/5)+1;if(!(await goPage(page))){bad.push(id+' ('+page+'페이지로 못 감)');if(!ok.length)break;continue;}
+      await sleep(400);let c=matchCard(r);
+      if(!c){for(const p of [page-1,page+1]){if(p<1)continue;await goPage(p);await sleep(300);c=matchCard(r);if(c)break;}}
+      if(!c){bad.push(id+' (화면에서 후기를 못 찾음)');if(!ok.length)break;continue;}
+      c.card.scrollIntoView({block:'center'});c.btn.click();let ta=null;for(let k=0;k<30&&!ta;k++){await sleep(100);ta=c.card.querySelector('textarea')||[...document.querySelectorAll('textarea')].find(t=>(t.getAttribute('placeholder')||'').includes('답글'));}
+      if(!ta){bad.push(id+' (답글 입력칸이 안 열림)');if(!ok.length)break;continue;}
+      setVal(ta,String(txt));await sleep(300);
+      let scope=ta;let sb=null;for(let k=0;k<6&&scope&&!sb;k++){scope=scope.parentElement;sb=scope?[...scope.querySelectorAll('button')].find(x=>(x.textContent||'').trim()==='등록'):null;}
+      if(!sb||sb.disabled){const cb=scope&&[...scope.querySelectorAll('button')].find(x=>(x.textContent||'').trim()==='취소');if(cb)cb.click();bad.push(id+' (등록 버튼을 못 찾음)');if(!ok.length)break;continue;}
+      sb.click();let done=false;for(let k=0;k<30&&!done;k++){await sleep(300);if(k%3===2)done=await hasComment(id);}
+      if(!done)done=await hasComment(id);
+      if(done)ok.push(id);else{bad.push(id+' (등록 후 확인 안 됨)');if(!ok.length)break;}
+      await sleep(600);
+    }catch(e){bad.push(id+' ('+e.message+')');if(!ok.length)break;}
+  }
   const after=await getAll();const payload='BJREV1:'+JSON.stringify({at:new Date().toISOString(),lp,items:after,posted:ok});let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
-  box.innerHTML='';const t=document.createElement('div');t.textContent='답글 올림: 성공 '+ok.length+'개'+(bad.length?' · 실패 '+bad.length+'개\n'+bad.slice(0,5).join('\n')+(ok.length===0?'\n(첫 답글이 실패해서 나머지는 멈췄어요)':''):'')+'\n\n바뀐 후기 목록(BJREV1)을 복사해요. 관리 사이트 [당근 후기] 칸에 붙여넣으세요.';box.append(t);copyBtn(payload,copied);close();return;
+  box.innerHTML='';const t=document.createElement('div');t.textContent='답글 올림: 성공 '+ok.length+'개'+(bad.length?' · 실패 '+bad.length+'개\n'+bad.slice(0,5).join('\n')+(ok.length===0?'\n(첫 답글이 실패해서 나머지는 멈췄어요. 위 이유를 Claude에게 알려주세요)':''):'')+'\n\n바뀐 후기 목록(BJREV1)을 복사해요. 관리 사이트 [당근 후기] 칸에 붙여넣으세요.';box.append(t);copyBtn(payload,copied);close();return;
 }
 const items=await getAll();
 const payload='BJREV1:'+JSON.stringify({at:new Date().toISOString(),lp,items});
