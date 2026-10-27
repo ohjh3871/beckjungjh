@@ -12,11 +12,15 @@ for(let i=0;i<tabs.length;i++){
   let h='';for(let k=0;k<3&&!h;k++){try{const r=await fetch(u,{credentials:'include'});if(r.ok)h=await r.text();}catch(e){}}
   if(!h){fail.push(tabs[i]);continue;}
   const d=new DOMParser().parseFromString(h,'text/html');
-  const hs=[...d.querySelectorAll('thead th')].map(th=>th.textContent.replace(/\s+/g,''));
+  const hrs=[...d.querySelectorAll('thead tr')].map(tr=>[...tr.children].map(th=>th.textContent.replace(/\s+/g,'')));
+  const hs=hrs.find(r=>r.some(x=>x.indexOf('상품명')===0))||[];
   const ix=k=>hs.findIndex(x=>x.indexOf(k)===0);
-  const iN=ix('상품명'),iP=ix('공급가'),iT=ix('총수량'),iR=ix('잔여');
-  if(iN<0||iT<0){fail.push(tabs[i]);continue;}
-  [...d.querySelectorAll('tbody tr')].forEach(tr=>{const c=tr.children;if(c.length<=Math.max(iN,iT))return;const a=c[iN].querySelector('a.nml');const nm=(a?a.textContent:c[iN].textContent).trim().replace(/\s+/g,' ');if(!nm)return;
+  const iN0=ix('상품명'),iP0=ix('공급가'),iT0=ix('총수량'),iR0=ix('잔여');
+  if(iN0<0||iT0<0){fail.push(tabs[i]);continue;}
+  [...d.querySelectorAll('tbody tr')].forEach(tr=>{const c=tr.children;
+    /* 머리줄과 본문 칸 수가 다를 수 있어서, 상품명 링크(a.nml)가 있는 칸 기준으로 위치를 맞춰요 */
+    const nIdx=[...c].findIndex(td=>td.querySelector('a.nml'));const sh=nIdx>=0?nIdx-iN0:0;
+    const iN=iN0+sh,iP=iP0>=0?iP0+sh:-1,iT=iT0+sh,iR=iR0>=0?iR0+sh:-1;if(c.length<=Math.max(iN,iT))return;const a=c[iN].querySelector('a.nml');const nm=(a?a.textContent:c[iN].textContent).trim().replace(/\s+/g,' ');if(!nm)return;
     const id=a?((a.getAttribute('href')||'').match(/(\d{5,})/)||[])[1]||'':'';
     const lock=c[iN].querySelector('.tag.rfs')?1:0;
     const tT=(c[iT].textContent||'').replace(/\s+/g,''),tR=iR>=0?(c[iR].textContent||'').replace(/\s+/g,''):'';const ample=/넉넉/.test(tR)||/^0{2,}$/.test(tT)?1:0;
