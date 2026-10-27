@@ -18,26 +18,27 @@ window.focus();let raw='';try{raw=(await navigator.clipboard.readText())||'';}ca
 try{
 if(/^BJESET1:/.test(raw)){
   let D;try{D=JSON.parse(raw.slice(8));}catch(e){box.remove();alert('반영 내용을 읽지 못했어요. 사이트에서 다시 복사해 주세요.');return;}
-  const cur=await getAll();const by={};cur.forEach(r=>{by[r[0]]=r;});
+  const SITE=D.site==='g'||D.site==='a'?D.site:'all';const useG=SITE!=='a',useA=SITE!=='g';const SN=SITE==='g'?'G마켓만':SITE==='a'?'옥션만':'G마켓·옥션 같이';
+  const cur0=await getAll();const cur=cur0.map(r=>{const x=r.slice();x[2]=stOf(useG?r[3]:null,useA?r[4]:null);return x;});const by={};cur.forEach(r=>{by[r[0]]=r;});
   /* 판매중지: 판매중인 사이트가 하나라도 있으면 → 있는 사이트 전부 중지. 판매가능: 중지된 사이트가 하나라도 있으면 → 있는 사이트 전부 판매 */
   const off=(D.off||[]).map(Number).filter(n=>by[n]&&(by[n][2]==='S'||by[n][2]==='M')),on=(D.on||[]).map(Number).filter(n=>by[n]&&(by[n][2]==='H'||by[n][2]==='M'));
   if(!off.length&&!on.length){box.remove();alert('바꿀 상품이 없어요. 이미 반영돼 있어요.');return;}
-  const sites=r=>[r[3]!=null?'G마켓':'',r[4]!=null?'옥션':''].filter(Boolean).join('+');
+  const sites=r=>[useG&&r[3]!=null?'G마켓':'',useA&&r[4]!=null?'옥션':''].filter(Boolean).join('+');
   const nm=n=>'· '+by[n][1]+' ('+sites(by[n])+')';
-  let msg='ESM 판매상태를 바꿀까요? (G마켓·옥션 같이 바뀌어요)\n';
+  let msg='ESM 판매상태를 바꿀까요? (적용 대상: '+SN+')\n';
   if(off.length)msg+='\n[판매중지] '+off.length+'개 (품절)\n'+off.slice(0,15).map(nm).join('\n')+(off.length>15?'\n… 외 '+(off.length-15)+'개':'')+'\n';
   if(on.length)msg+='\n[판매가능] '+on.length+'개 (재입고)\n'+on.slice(0,15).map(nm).join('\n')+(on.length>15?'\n… 외 '+(on.length-15)+'개':'')+'\n';
   const skip=(D.off||[]).length+(D.on||[]).length-off.length-on.length;if(skip)msg+='\n이미 바뀌어 있거나 목록에 없는 '+skip+'개는 건너뛰어요.';
   box.textContent='확인창을 확인해 주세요.';if(!confirm(msg)){box.remove();return;}
-  const put=async(n,sell)=>{const r=by[n];const isSell={};if(r[3]!=null)isSell.gmkt=sell;if(r[4]!=null)isSell.iac=sell;
-    const h={'Content-Type':'application/json','X-G-SELLER-ID':r[3]!=null?encodeURIComponent(r[5]):'','X-A-SELLER-ID':r[4]!=null?encodeURIComponent(r[6]):''};
+  const put=async(n,sell)=>{const r=by[n];const doG=useG&&r[3]!=null,doA=useA&&r[4]!=null;const isSell={};if(doG)isSell.gmkt=sell;if(doA)isSell.iac=sell;
+    const h={'Content-Type':'application/json','X-G-SELLER-ID':doG?encodeURIComponent(r[5]):'','X-A-SELLER-ID':doA?encodeURIComponent(r[6]):''};
     try{const x=await fetch('/api/ea/goods/'+n+'/sellStatus',{method:'PUT',credentials:'include',headers:h,body:JSON.stringify({isSell})});let j=null;try{j=await x.json();}catch(e){}return x.ok&&(!j||j.resultCode===0||j.resultCode==null)?null:(j&&j.message||('HTTP '+x.status));}catch(e){return String(e&&e.message||e);}};
   const fails=[];let k=0;const jobs=[...off.map(n=>[n,false]),...on.map(n=>[n,true])];
   for(const [n,s] of jobs){k++;say((s?'판매가능':'판매중지')+'으로 바꾸는 중… '+k+'/'+jobs.length);const e=await put(n,s);if(e)fails.push(by[n][1]+' — '+e);}
-  const after=await getAll();const ab={};after.forEach(r=>{ab[r[0]]=r;});
+  const after=await getAll();const ab={};after.forEach(r=>{const x=r.slice();x[2]=stOf(useG?r[3]:null,useA?r[4]:null);ab[r[0]]=x;});
   const notYet=[...off.filter(n=>ab[n]&&(ab[n][2]==='S'||ab[n][2]==='M')),...on.filter(n=>ab[n]&&(ab[n][2]==='H'||ab[n][2]==='M'))].map(n=>ab[n][1]);
   const payload='BJESP1:'+JSON.stringify({at:new Date().toISOString(),items:after});let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
-  box.innerHTML='';const t=document.createElement('div');t.textContent='판매중지 '+off.length+'개 · 판매가능 '+on.length+'개 요청했어요.'+(fails.length?'\n\n실패 '+fails.length+'개:\n'+fails.slice(0,10).join('\n'):'')+(notYet.length?'\n\n다시 읽었을 때 아직 안 바뀐 것 '+notYet.length+'개:\n'+notYet.slice(0,10).join('\n'):(fails.length?'':'\n다시 읽어보니 전부 바뀌었어요.'))+'\n\n바뀐 ESM 상품 목록 전체(BJESP1)를 복사해요. 관리 사이트 [상품 관리 → ESM] 칸에 붙여넣으세요.';box.append(t);copyBtn(payload,copied);close();return;
+  box.innerHTML='';const t=document.createElement('div');t.textContent='['+SN+'] 판매중지 '+off.length+'개 · 판매가능 '+on.length+'개 요청했어요.'+(fails.length?'\n\n실패 '+fails.length+'개:\n'+fails.slice(0,10).join('\n'):'')+(notYet.length?'\n\n다시 읽었을 때 아직 안 바뀐 것 '+notYet.length+'개:\n'+notYet.slice(0,10).join('\n'):(fails.length?'':'\n다시 읽어보니 전부 바뀌었어요.'))+'\n\n바뀐 ESM 상품 목록 전체(BJESP1)를 복사해요. 관리 사이트 [상품 관리 → ESM] 칸에 붙여넣으세요.';box.append(t);copyBtn(payload,copied);close();return;
 }
 const items=await getAll();
 const payload='BJESP1:'+JSON.stringify({at:new Date().toISOString(),items});
