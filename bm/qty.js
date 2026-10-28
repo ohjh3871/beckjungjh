@@ -15,16 +15,16 @@ for(let i=0;i<tabs.length;i++){
   const hrs=[...d.querySelectorAll('thead tr')].map(tr=>[...tr.children].map(th=>th.textContent.replace(/\s+/g,'')));
   const hs=hrs.find(r=>r.some(x=>x.indexOf('상품명')===0))||[];
   const ix=k=>hs.findIndex(x=>x.indexOf(k)===0);
-  const iN0=ix('상품명'),iP0=ix('공급가'),iT0=ix('총수량'),iR0=ix('잔여');
+  const iN0=ix('상품명'),iP0=ix('공급가'),iT0=ix('총수량'),iR0=ix('잔여'),iF0=ix('택배비');
   if(iN0<0||iT0<0){fail.push(tabs[i]);continue;}
   [...d.querySelectorAll('tbody tr')].forEach(tr=>{const c=tr.children;
     /* 머리줄과 본문 칸 수가 다를 수 있어서, 상품명 링크(a.nml)가 있는 칸 기준으로 위치를 맞춰요 */
     const nIdx=[...c].findIndex(td=>td.querySelector('a.nml'));const sh=nIdx>=0?nIdx-iN0:0;
-    const iN=iN0+sh,iP=iP0>=0?iP0+sh:-1,iT=iT0+sh,iR=iR0>=0?iR0+sh:-1;if(c.length<=Math.max(iN,iT))return;const a=c[iN].querySelector('a.nml');const nm=(a?a.textContent:c[iN].textContent).trim().replace(/\s+/g,' ');if(!nm)return;
+    const iN=iN0+sh,iP=iP0>=0?iP0+sh:-1,iT=iT0+sh,iR=iR0>=0?iR0+sh:-1,iF=iF0>=0?iF0+sh:-1;if(c.length<=Math.max(iN,iT))return;const a=c[iN].querySelector('a.nml');const nm=(a?a.textContent:c[iN].textContent).trim().replace(/\s+/g,' ');if(!nm)return;
     const id=a?((a.getAttribute('href')||'').match(/(\d{5,})/)||[])[1]||'':'';
     const lock=c[iN].querySelector('.tag.rfs')?1:0;
     const tT=(c[iT].textContent||'').replace(/\s+/g,''),tR=iR>=0?(c[iR].textContent||'').replace(/\s+/g,''):'';const ample=/넉넉/.test(tR)||/^0{2,}$/.test(tT)?1:0;
-    rows.push([String(tabs[i]).replace(/\d+$/,''),nm,ample?999:num(tT),ample?999:(iR>=0?num(tR):0),iP>=0?num(c[iP].textContent):0,id,lock,ample]);});
+    rows.push([String(tabs[i]).replace(/\d+$/,''),nm,ample?999:num(tT),ample?999:(iR>=0?num(tR):0),iP>=0?num(c[iP].textContent):0,id,lock,ample,iF>=0&&c[iF]?num(c[iF].textContent):0]);});
 }
 const day=((document.body.innerText||'').match(/📅[^\n]*/)||[''])[0].replace('📅','').trim();
 const payload='BJQTY1:'+JSON.stringify({at:new Date().toISOString(),day,v:2,rows});
