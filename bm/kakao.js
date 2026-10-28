@@ -28,7 +28,7 @@ if(/^BJKSET1:/.test(raw)){
   if(on.length)msg+='\n[판매중지 해제] '+on.length+'개 (재입고)\n'+on.slice(0,15).map(nm).join('\n')+(on.length>15?'\n… 외 '+(on.length-15)+'개':'')+'\n';
   const skip=(D.off||[]).length+(D.on||[]).length-off.length-on.length;if(skip)msg+='\n이미 바뀌어 있거나 목록에 없는 '+skip+'개는 건너뛰어요.';
   box.textContent='확인창을 확인해 주세요.';if(!confirm(msg)){box.remove();return;}
-  const put=async(ids,path)=>{try{const r=await fetch('/api/tstore/products/'+path,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json',accept:'application/json'},body:JSON.stringify({productIds:ids})});let j=null;try{j=await r.json();}catch(e){}return r.ok?null:((j&&(j.message||j.errorMessage||j.error))||('HTTP '+r.status));}catch(e){return String(e&&e.message||e);}};
+  const put=async(ids,path)=>{try{const r=await fetch('/api/tstore/products/'+path,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json',accept:'application/json'},body:JSON.stringify({productIds:ids})});let j=null;try{j=await r.json();}catch(e){}return r.ok?null:((j&&(j.error_message||j.message||j.errorMessage||j.error))||('HTTP '+r.status));}catch(e){return String(e&&e.message||e);}};
   const res=[];
   for(let i=0;i<off.length;i+=50){say('판매중지로 바꾸는 중… '+Math.min(i+50,off.length)+'/'+off.length);const e=await put(off.slice(i,i+50),'suspension');if(e)res.push('판매중지 실패: '+e);}
   for(let i=0;i<on.length;i+=50){say('판매중지 해제 중… '+Math.min(i+50,on.length)+'/'+on.length);const e=await put(on.slice(i,i+50),'suspension/release');if(e)res.push('판매중지 해제 실패: '+e);}
