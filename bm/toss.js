@@ -3,7 +3,7 @@ if(!/shopping-seller\.toss\.im$/.test(location.host)){alert('토스쇼핑 파트
 const box=document.createElement('div');box.style.cssText='position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:2147483647;background:#1f2937;color:#fff;padding:16px 20px;border-radius:12px;font:14px/1.6 sans-serif;width:min(560px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.35);white-space:pre-wrap';document.body.append(box);
 const say=t=>{box.textContent=t;};
 const close=()=>{const cl=document.createElement('button');cl.textContent='닫기';cl.style.cssText='margin-top:10px;background:#fff;color:#111;border:0;border-radius:6px;padding:6px 14px;cursor:pointer';cl.onclick=()=>box.remove();box.append(cl);};
-const copyBtn=(payload,copied)=>{const bt=document.createElement('button');bt.style.cssText='display:block;margin-top:12px;background:#facc15;color:#111;border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:15px';const ok=()=>{bt.textContent='✔ 토스 상품 목록(BJTSP1) 복사됨 — 관리 사이트 [상품 관리 → 토스] 칸에 붙여넣기만 하면 돼요';bt.style.background='#86efac';};
+const copyBtn=(payload,copied)=>{const bt=document.createElement('button');bt.style.cssText='display:block;margin-top:12px;background:#facc15;color:#111;border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:15px';const ok=()=>{bt.textContent=ALL?'✔ 품절 한 번에 진행 내용 복사됨 — 다음 마켓에서 북마크를 누르세요':'✔ 토스 상품 목록(BJTSP1) 복사됨 — 관리 사이트 [상품 관리 → 토스] 칸에 붙여넣기만 하면 돼요';bt.style.background='#86efac';};
   let done=copied;const tryCopy=async()=>{if(done)return;try{await navigator.clipboard.writeText(payload);done=true;ok();}catch(e){}};
   if(copied)ok();else{bt.textContent='📋 토스 상품 목록 복사 (이 화면을 누르면 자동 복사돼요)';const iv=setInterval(()=>{if(done){clearInterval(iv);return;}if(document.hasFocus())tryCopy();},700);window.addEventListener('focus',tryCopy);document.addEventListener('pointerdown',tryCopy,true);setTimeout(()=>clearInterval(iv),30*60000);}
   bt.onclick=async()=>{done=false;await tryCopy();};box.append(bt);};
@@ -16,6 +16,10 @@ const getAll=async()=>{const all=[];let c=null;for(let p=0;p<30;p++){say('토스
     all.push([p.productId,String(p.productName||'').replace(/\s+/g,' ').trim(),st,its.map(i=>i.itemId),its.reduce((t,i)=>t+(Number(i.quantity)||0),0),its.length?Math.min(...its.map(i=>Number(i.salePrice)||0)):0]);});
   c=j.success.paging&&j.success.paging.nextCursor;if(!c)break;}return all;};
 window.focus();let raw='';try{raw=(await navigator.clipboard.readText())||'';}catch(e){}raw=raw.trim();
+const ALLMK='toss',ALLNM={c24:'카페24',toss:'토스',esm:'ESM',kakao:'카카오 톡스토어'};let ALL=null;
+if(/^BJALL1:/.test(raw)){try{ALL=JSON.parse(raw.slice(7));}catch(e){ALL=null;}if(ALL){const pt=ALL.m&&ALL.m[ALLMK];raw=pt?'BJTSET1:'+JSON.stringify(pt):'';}}
+const wrapOut=p=>{if(!ALL)return p;const i=p.indexOf(':');ALL.fresh=ALL.fresh||{};try{ALL.fresh[ALLMK]=JSON.parse(p.slice(i+1));}catch(e){}ALL.done=ALL.done||{};ALL.done[ALLMK]=new Date().toISOString();return 'BJALL1:'+JSON.stringify(ALL);};
+const allNote=()=>{if(!ALL)return;const left=(ALL.order||[]).filter(k=>!(ALL.done||{})[k]);const d=document.createElement('div');d.style.cssText='margin-top:10px;padding:8px 10px;background:#fef9c3;color:#111;border-radius:8px;white-space:pre-wrap';d.textContent='🧾 품절 한 번에 진행 중\n'+(left.length?'남은 곳: '+left.map(k=>ALLNM[k]).join(', ')+'\n그 화면에서 같은 방식으로 북마크를 누르세요(복사된 내용 그대로 이어져요).':'모든 마켓 끝! 관리 사이트 [상품 관리] 맨 위 ‘품절 한 번에’ 칸에 붙여넣으면 결과가 한꺼번에 최신으로 바뀌어요.');box.append(d);};
 try{
 if(/^BJTSET1:/.test(raw)){
   let D;try{D=JSON.parse(raw.slice(8));}catch(e){box.remove();alert('반영 내용을 읽지 못했어요. 사이트에서 다시 복사해 주세요.');return;}
@@ -32,13 +36,13 @@ if(/^BJTSET1:/.test(raw)){
   const res=[];
   if(hide.length){say('판매 대기로 바꾸는 중… '+hide.length+'개');const r=await put(hide,true);res.push('판매 대기 '+hide.length+'개: '+(r.ok?'완료':'실패'+(r.f?' '+r.f+'건':'')+(r.msg?' ('+r.msg+')':'')));}
   if(show.length){say('판매중으로 바꾸는 중… '+show.length+'개');const r=await put(show,false);res.push('판매중 '+show.length+'개: '+(r.ok?'완료':'실패'+(r.f?' '+r.f+'건':'')+(r.msg?' ('+r.msg+')':'')));}
-  const after=await getAll();const payload='BJTSP1:'+JSON.stringify({at:new Date().toISOString(),items:after});let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
-  box.innerHTML='';const t=document.createElement('div');t.textContent=res.join('\n')+'\n\n바뀐 토스 상품 목록 전체(BJTSP1)를 복사해요. 관리 사이트 [상품 관리 → 토스] 칸에 붙여넣으세요.\n토스 화면은 새로고침하면 바뀐 상태로 보여요.';box.append(t);copyBtn(payload,copied);close();return;
+  const after=await getAll();const payload=wrapOut('BJTSP1:'+JSON.stringify({at:new Date().toISOString(),items:after}));let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
+  box.innerHTML='';const t=document.createElement('div');t.textContent=res.join('\n')+'\n\n바뀐 토스 상품 목록 전체(BJTSP1)를 복사해요. 관리 사이트 [상품 관리 → 토스] 칸에 붙여넣으세요.\n토스 화면은 새로고침하면 바뀐 상태로 보여요.';box.append(t);allNote();copyBtn(payload,copied);close();return;
 }
 const items=await getAll();
-const payload='BJTSP1:'+JSON.stringify({at:new Date().toISOString(),items});
+const payload=wrapOut('BJTSP1:'+JSON.stringify({at:new Date().toISOString(),items}));
 let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
 box.innerHTML='';const t=document.createElement('div');
-t.textContent='토스 상품 '+items.length+'개를 읽었어요. (판매중 '+items.filter(r=>r[2]==='S').length+' · 판매 대기 '+items.filter(r=>r[2]==='H').length+' · 품절 '+items.filter(r=>r[2]==='O').length+')\n\n관리 사이트 [상품 관리 → 토스] 칸에 붙여넣으세요(Ctrl+V).';box.append(t);copyBtn(payload,copied);close();
+t.textContent='토스 상품 '+items.length+'개를 읽었어요. (판매중 '+items.filter(r=>r[2]==='S').length+' · 판매 대기 '+items.filter(r=>r[2]==='H').length+' · 품절 '+items.filter(r=>r[2]==='O').length+')\n\n관리 사이트 [상품 관리 → 토스] 칸에 붙여넣으세요(Ctrl+V).';box.append(t);allNote();copyBtn(payload,copied);close();
 }catch(e){box.innerHTML='';const t=document.createElement('div');t.textContent='오류: '+(e&&e.message||e);box.append(t);close();}
 })();
