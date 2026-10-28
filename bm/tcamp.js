@@ -14,7 +14,7 @@ const H={'x-merchant-id':'46627','x-merchant-user-id':'80697','x-toss-frontend-s
 const API='https://api-public.toss.im/api-public';
 const J=async(url,opt)=>{let j=null;for(let k=0;k<3&&!j;k++){try{const r=await fetch(url,Object.assign({credentials:'include'},opt||{},{headers:Object.assign({},H,(opt&&opt.body)?{'Content-Type':'application/json'}:{})}));if(r.ok)j=await r.json();}catch(e){}}return j;};
 const camp=async()=>{const j=await J(API+'/v3/shopping-curation/sales-campaign/search/cursor');const c=j&&j.success&&(j.success.list||[]).find(x=>x.id===CID);return c||{id:CID,title:'기획전 '+CID};};
-const applied=async()=>{const j=await J(API+'/v3/shopping-curation/sales-campaign/'+CID+'/items');const m={};((j&&j.success&&j.success.list)||[]).forEach(x=>{m[x.productItemId]=[x.status,x.desiredSalePrice||0,x.rejectReason||''];});return m;};
+let APPS=[];const applied=async()=>{const j=await J(API+'/v3/shopping-curation/sales-campaign/'+CID+'/items');const m={};APPS=[];((j&&j.success&&j.success.list)||[]).forEach(x=>{m[x.productItemId]=[x.status,x.desiredSalePrice||0,x.rejectReason||''];APPS.push([x.productItemId,String(x.productName||'').replace(/\s+/g,' ').trim(),x.status||'',Number(x.desiredSalePrice)||0,x.rejectReason||'',x.registeredAt||'',Number(x.campaignFinalPrice)||0,Number(x.originalPrice)||0,Number(x.orderCnt)||0,Number(x.gmv)||0,Number(x.impPv)||0]);});return m;};
 const products=async()=>{const all=[];let c=null;for(let p=0;p<30;p++){say('토스 상품 읽는 중… '+all.length+'개 옵션');const u=new URL(API+'/v2/shopping-internal/product-items/grouped-by-products');u.searchParams.set('size','100');if(c)u.searchParams.set('nextCursor',c);const j=await J(u);if(!j||!j.success)throw new Error('토스 상품 목록을 읽지 못했어요. 로그인돼 있는지 확인해 주세요.');
   (j.success.items||[]).forEach(p=>(p.productItems||[]).forEach(i=>{all.push({id:i.itemId,pid:p.productId,pn:String(p.productName||'').replace(/\s+/g,' ').trim(),on:String(i.itemName||'').trim(),price:Number(i.salePrice)||0,st:i.status&&i.status.code||'',hide:!!i.isHide});}));
   c=j.success.paging&&j.success.paging.nextCursor;if(!c)break;}return all;};
@@ -22,7 +22,7 @@ const priceInfo=async(list)=>{const out={};for(let i=0;i<list.length;i+=50){say(
   ((j&&j.success&&j.success.items)||[]).forEach((r,k)=>{const id=part[k][0];if(r&&r.success&&r.item){const d=r.item.deliveryFee||{};out[id]={ok:1,fee:[d.type||'',Number(d.amount)||0,Number(d.minimumPurchasePrice)||0,Number(d.calculatedAmount)||0],fin:Number(r.item.campaignFinalPrice)||0,rec:Number(r.item.tossRecommendationPrice)||0};}else out[id]={ok:0,err:(r&&r.error&&(r.error.message||r.error.reason))||'신청 불가'};});}return out;};
 const readAll=async()=>{const c=await camp();const ap=await applied();const ps=await products();const sell=ps.filter(x=>x.st==='SELLING'&&!x.hide);const pi=await priceInfo(sell.map(x=>[x.id,x.price]));
   const items=sell.map(x=>{const q=pi[x.id]||{};const a=ap[x.id]||null;return [x.id,x.pid,x.pn,x.on,x.price,q.fee||null,q.rec||0,a,q.ok?'':(q.err||'')];});
-  return {at:new Date().toISOString(),cid:CID,title:c.title||'',start:c.startAtInclusive||'',end:c.endAtExclusive||'',applyEnd:c.applyEndAtExclusive||'',status:c.status||'',items};};
+  return {at:new Date().toISOString(),cid:CID,title:c.title||'',start:c.startAtInclusive||'',end:c.endAtExclusive||'',applyEnd:c.applyEndAtExclusive||'',status:c.status||'',items,apps:APPS};};
 window.focus();let raw='';try{raw=(await navigator.clipboard.readText())||'';}catch(e){}raw=raw.trim();
 try{
 if(/^BJTCSET1:/.test(raw)){
@@ -53,7 +53,7 @@ const P=await readAll();
 const payload='BJTCP1:'+JSON.stringify(P);
 let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
 box.innerHTML='';const t=document.createElement('div');
-const ap=P.items.filter(r=>r[7]).length,no=P.items.filter(r=>r[8]).length;
-t.textContent='「'+P.title+'」\n판매중인 토스 옵션 '+P.items.length+'개를 읽었어요. (이미 신청 '+ap+' · 이 기획전 신청 불가 '+no+')\n\n관리 사이트 [상품 관리 → 토스 → 🎯 기획전 신청] 칸에 붙여넣으세요(Ctrl+V).';box.append(t);copyBtn(payload,copied);close();
+const ap=(P.apps||[]).length,no=P.items.filter(r=>r[8]).length;const cnt=s=>(P.apps||[]).filter(a=>a[2]===s).length;
+t.textContent='「'+P.title+'」\n판매중인 토스 옵션 '+P.items.length+'개를 읽었어요. (이 기획전 신청 불가 '+no+')\n신청 현황: 전체 '+ap+'개 — 검토 중 '+cnt('REVIEW')+' · 참여 '+cnt('CONFIRMED')+' · 반려 '+cnt('REJECTED')+' · 중단 '+cnt('STOPPED')+'\n\n관리 사이트 [상품 관리 → 토스 → 🎯 기획전 신청] 칸에 붙여넣으세요(Ctrl+V).';box.append(t);copyBtn(payload,copied);close();
 }catch(e){box.innerHTML='';const t=document.createElement('div');t.textContent='오류: '+(e&&e.message||e);box.append(t);close();}
 })();
