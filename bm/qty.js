@@ -2,7 +2,9 @@
 if(!/service\.masterc\.co\.kr$/.test(location.host)){alert('마스터 수량 화면(service.masterc.co.kr/qty)에서 눌러주세요.');return;}
 const box=document.createElement('div');box.style.cssText='position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:2147483647;background:#1f2937;color:#fff;padding:16px 20px;border-radius:12px;font:14px/1.6 sans-serif;width:min(560px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.35);white-space:pre-wrap';document.body.append(box);
 const say=t=>{box.textContent=t;};
-const tabs=[...document.querySelectorAll('a.chip.wh')].map(a=>{try{return new URL(a.href).searchParams.get('tab');}catch(e){return null;}}).filter(t=>t&&t!=='*');
+let chipDoc=document;if(!document.querySelector('a.chip.wh')){try{const fr=[...document.querySelectorAll('iframe')].find(f=>/\/qty\//.test(f.src));if(fr&&fr.contentDocument&&fr.contentDocument.querySelector('a.chip.wh'))chipDoc=fr.contentDocument;}catch(e){}}
+if(!chipDoc.querySelector('a.chip.wh')){try{const h=await (await fetch('/qty/',{credentials:'include'})).text();chipDoc=new DOMParser().parseFromString(h,'text/html');}catch(e){}}
+const tabs=[...new Set([...chipDoc.querySelectorAll('a.chip.wh')].map(a=>{try{return new URL(a.getAttribute('href'),location.origin+'/qty/').searchParams.get('tab');}catch(e){return null;}}).filter(t=>t&&t!=='*'))];
 if(!tabs.length){box.remove();alert('창고 목록을 찾지 못했어요. 수량 화면(…/qty/)에서 눌러주세요.');return;}
 const num=t=>{const n=parseInt(String(t||'').replace(/[^\d-]/g,''),10);return isNaN(n)?0:n;};
 const rows=[],fail=[];
@@ -26,7 +28,7 @@ for(let i=0;i<tabs.length;i++){
     const tT=(c[iT].textContent||'').replace(/\s+/g,''),tR=iR>=0?(c[iR].textContent||'').replace(/\s+/g,''):'';const ample=/넉넉/.test(tR)||/^0{2,}$/.test(tT)?1:0;
     rows.push([String(tabs[i]).replace(/\d+$/,''),nm,ample?999:num(tT),ample?999:(iR>=0?num(tR):0),iP>=0?num(c[iP].textContent):0,id,lock,ample,iF>=0&&c[iF]?num(c[iF].textContent):0]);});
 }
-const day=((document.body.innerText||'').match(/📅[^\n]*/)||[''])[0].replace('📅','').trim();
+const day=(((chipDoc.body&&chipDoc.body.innerText)||chipDoc.body&&chipDoc.body.textContent||document.body.innerText||'').match(/📅[^\n]*/)||[''])[0].replace('📅','').trim();
 const payload='BJQTY1:'+JSON.stringify({at:new Date().toISOString(),day,v:2,rows});
 let copied=false;try{window.focus();await navigator.clipboard.writeText(payload);copied=true;}catch(e){}
 box.innerHTML='';const t=document.createElement('div');

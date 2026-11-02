@@ -334,7 +334,7 @@ body{background:#f5f4f0;color:#1a1816;font-family:'Apple SD Gothic Neo','Noto Sa
   <div id="dm">
     <div class="dm-left">
       <div class="dm-h3">① 페이지 소스 붙여넣기</div>
-      <textarea id="dm-src" placeholder="masterc 게시글 [복사] 또는 페이지 소스(Ctrl+U) 통째로 붙여넣기"></textarea>
+      <textarea id="dm-src" placeholder="마스터 상품 페이지(수량 → 상품명 클릭) 소스(Ctrl+U) 통째로 붙여넣기 — 예전 게시글 소스도 돼요"></textarea>
       <button class="dm-gen" onclick="DM.generate()">⚡ 상세페이지 생성</button>
       <div class="dm-h3">상품명 <span style="font-weight:400;color:#aaa;font-size:11px">(상세 제목·썸네일 파일명 공통 — 생성 시 자동)</span></div>
       <input id="dm-prodname" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:9px;font-family:inherit" placeholder="소스 생성하면 자동 입력 (직접 수정 가능)" oninput="DM.setProd()">
@@ -477,7 +477,30 @@ const DM=(function(){
     if(steps.length>=2)return{type:'steps',intro:items.filter(l=>!/^\d+\.\s*\S/.test(l)),steps:steps.map(l=>l.replace(/^\d+\.\s*/,'').trim())};
     return{type:'text',items};
   }
+  // 2026-11 마스터 그룹웨어 개편: 새 상품 페이지(qty/pinfo.php) 소스를 예전 게시글(xe_content) 모양으로 바꿔서 같은 방식으로 읽어요
+  function pinfoToXe(src){
+    const d=new DOMParser().parseFromString(src,'text/html');
+    const T=s=>String(s||'').replace(/\s+/g,' ').trim();
+    const H=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const tl=el=>{if(!el)return[];const h=el.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,'');const t=document.createElement('textarea');t.innerHTML=h;return t.value.split('\n').map(T).filter(Boolean);};
+    const lines=[];
+    const h2=d.querySelector('h2'); if(h2) lines.push(T(h2.textContent));
+    const c=d.querySelector('p.catch'); if(c&&T(c.textContent)) lines.push(T(c.textContent));
+    const rows=[...d.querySelectorAll('table.xv tr')].map(tr=>[T(tr.querySelector('th')&&tr.querySelector('th').textContent),tl(tr.querySelector('td')).join(' ')]).filter(r=>r[0]);
+    if(rows.length){ lines.push('○ 상품 정보'); rows.forEach(r=>lines.push('※ '+r[0]+' : '+r[1])); }
+    d.querySelectorAll('details.sd, details').forEach(sd=>{
+      const sm=sd.querySelector('summary'); lines.push('○ '+T(sm?sm.textContent:''));
+      const qas=sd.querySelectorAll('.qa');
+      if(qas.length){ qas.forEach(q=>{const b=q.querySelector('b,strong'); let qt=T(b?b.textContent:''); if(b)b.remove(); if(qt) lines.push(/^Q[.\s]/.test(qt)?qt:'Q. '+qt); tl(q).forEach(l=>lines.push(l));}); }
+      else { const body=sd.cloneNode(true); const s2=body.querySelector('summary'); if(s2)s2.remove(); tl(body).forEach(l=>lines.push(l)); }
+    });
+    const main=[...d.querySelectorAll('.ph img')].map(i=>i.getAttribute('src'));
+    const pics=[...d.querySelectorAll('.pics img, img')].map(i=>i.getAttribute('src'));
+    const imgs=[...new Set(main.concat(pics).filter(u=>u&&/attach\/images/.test(u)))];
+    return '<div class="xe_content">'+lines.map(H).join('<br>')+imgs.map(u=>'<img src="'+u+'">').join('')+'</div><!--AfterDocument';
+  }
   function parse(src){
+    if(!/xe_content/.test(src)&&/class="xv"|<details[^>]*class="sd"|class="pw"/.test(src)) src=pinfoToXe(src);
     let m=src.match(/class="[^"]*xe_content[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<!--AfterDocument/);
     let content=m?m[1]:(src.match(/class="[^"]*xe_content[^"]*"[^>]*>([\s\S]*)/)||[,src])[1];
     let images=[...content.matchAll(/<img[^>]+src="([^"]+)"/g)].map(x=>x[1].replace('/./','/')).filter(u=>/attach\/images/.test(u));
@@ -1033,7 +1056,7 @@ function go(){var m='bj';try{m=localStorage.getItem('dm_last_mode')==='ss'?'ss':
   if(H.name){var pn=document.getElementById('dm-prodname');if(pn)pn.value=H.name;var gb=document.querySelector('.dm-gen');if(gb)gb.addEventListener('click',function(){setTimeout(function(){var p=document.getElementById('dm-prodname');if(p&&H.name){p.value=H.name;try{DM.setProd();}catch(e){}}},50);});}
   if(H.src||H.name){var box=document.createElement('div');box.style.cssText='background:#fff8e1;border:1px solid #f0d27a;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.6';
     box.innerHTML='<b>관리 사이트에서 연 상품</b> · '+(m==='ss'?'🐟 수사장':'🔪 백정닷컴')+(H.wh&&m==='bj'?' · '+H.wh.replace(/</g,'&lt;'):'')+(H.name?'<br>상품명: '+H.name.replace(/</g,'&lt;'):'')+(H.src?'<br><a target="_blank" rel="noopener">마스터 게시글 열기 ↗</a> → Ctrl+U → 전체 복사 → ① 칸에 붙여넣기':'');
-    if(H.src){var a=box.querySelector('a');if(/^https?:\/\/(www\.)?masterc\.co\.kr\//i.test(H.src))a.href=H.src;}
+    if(H.src){var a=box.querySelector('a');if(/^https?:\/\/((www|service)\.)?masterc\.co\.kr\//i.test(H.src))a.href=H.src;}
     var left=document.querySelector('#dm .dm-left');if(left)left.insertBefore(box,left.firstChild);}
 }document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.dm-mb[data-m]');if(b){try{localStorage.setItem('dm_last_mode',b.dataset.m);}catch(x){}}});if(document.readyState==='complete')setTimeout(go,0);else window.addEventListener('load',function(){setTimeout(go,0);});})();</script>
 </body></html>
